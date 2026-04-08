@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raport Ditor Euro 1</title>
+    <link rel="icon" type="image/png" href="https://balliugroup.org/wp-content/uploads/2023/10/euro1-logo.png">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --highlight: #e8f0fe;
+            --success-border: #34a853;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #3c4043;
+        }
+
+        body { 
+            font-family: 'Google Sans', Roboto, Arial, sans-serif; 
+            margin: 0; padding: 0; 
+            background-color: var(--bg); 
+            color: var(--text);
+            scroll-behavior: smooth;
+        }
+
+        /* Header Image Section */
+        .banner-container {
+            width: 100%;
+            background: white;
+            text-align: center;
+            border-bottom: 1px solid #dadce0;
+        }
+        
+        .banner-image {
+            max-width: 100%;
+            height: auto;
+            max-height: 200px; /* Adjust this to fit your logo/banner size */
+            display: block;
+            margin: 0 auto;
+        }
+
+        .header {
+            position: sticky; top: 0;
+            background: white;
+            padding: 10px 15px;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.3);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        
+        input[type="text"]:focus { border-color: var(--primary); }
+
+        .status-text { font-size: 11px; color: #70757a; margin-top: 5px; text-align: center; }
+
+        .container { padding: 10px; max-width: 800px; margin: 0 auto; padding-bottom: 80px; }
+
+        /* Card Styling */
+        .item {
+            background: var(--card-bg);
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        /* Highlight the very first (newest) item */
+        .item:first-child {
+            border-left: 5px solid var(--success-border);
+            background: #fafffa;
+        }
+
+        .item.open { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        .item-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .item-header .title {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 85%;
+        }
+
+        .chevron {
+            border: solid #5f6368;
+            border-width: 0 2px 2px 0;
+            display: inline-block;
+            padding: 3px;
+            transform: rotate(45deg);
+            transition: 0.3s;
+        }
+
+        .item-content {
+            display: none;
+            padding: 0 15px 15px 15px;
+            background: #fafafa;
+            border-top: 1px solid #f1f3f4;
+        }
+
+        .item.open .item-content { display: block; }
+        .item.open .chevron { transform: rotate(-135deg); }
+
+        .data-row { margin-top: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .label { font-size: 10px; color: var(--primary); text-transform: uppercase; font-weight: bold; }
+        .value { font-size: 15px; margin-top: 4px; color: #202124; line-height: 1.4; }
+
+        .close-row-btn {
+            display: block; width: 100%; padding: 14px; margin-top: 20px;
+            background: #f1f3f4; border: none; border-radius: 6px;
+            color: #5f6368; font-weight: bold; cursor: pointer;
+        }
+
+        #backToTop {
+            display: none; position: fixed; bottom: 20px; right: 20px;
+            background: var(--primary); color: white; border: none;
+            padding: 12px 18px; border-radius: 50px; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 99;
+        }
+
+        .image-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .img-thumb { width: 85px; height: 85px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+
+        .modal { display: none; position: fixed; z-index: 1000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); }
+        .modal-img { width: 100%; height: 100%; object-fit: contain; }
+        .close-modal { position: absolute; top: 20px; right: 20px; color: white; font-size: 40px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="banner-container">
+    <img src="https://balliugroup.org/wp-content/uploads/2023/10/euro1-logo.png" class="banner-image" alt="Dashboard Header">
+</div>
+
+<div class="header">
+    <input type="text" id="searchInput" placeholder="Search entries..." onkeyup="filterData()">
+    <div class="status-text">Next update in <span id="timer">60</span>s</div>
+</div>
+
+<div id="container" class="container">
+    <div style="text-align:center; padding: 40px; color: #777;">Loading data...</div>
+</div>
+
+<button id="backToTop" onclick="window.scrollTo(0,0)">↑ Top</button>
+
+<div id="imageModal" class="modal" onclick="this.style.display='none'">
+    <span class="close-modal">×</span>
+    <img id="modalImg" class="modal-img">
+</div>
+
+<script>
+    const SPREADSHEET_ID = '1O8LQmczFKOQlsp4QyNstxdGZaSq-FhMr9ntn3kP2eqw';
+    const API_KEY = 'AIzaSyA6w188Nve689wC79Me_bv7X9IHC0RQhL8';
+    const SHEET_NAME = 'Form Responses 1';
+    let timeLeft = 60; // Timer set to 60 seconds
+
+    async function fetchData() {
+        try {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${API_KEY}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.values) renderList(data.values);
+        } catch (e) { console.error("Update failed"); }
+    }
+
+    function renderList(values) {
+        const headers = values[0];
+        const rows = values.slice(1).reverse();
+        const container = document.getElementById('container');
+        
+        let html = '';
+        rows.forEach((row, index) => {
+            const title = (row[0] || 'Entry') + " — " + (row[1] || '');
+            
+            html += `
+                <div class="item" id="item-${index}">
+                    <div class="item-header" onclick="toggleItem(this)">
+                        <span class="title">${title}</span>
+                        <i class="chevron"></i>
+                    </div>
+                    <div class="item-content">`;
+            
+            headers.forEach((header, i) => {
+                let val = row[i] || '—';
+                if (val.toString().includes('drive.google.com')) {
+                    const ids = val.match(/[-\w]{25,}/g);
+                    if (ids) {
+                        html += `<div class="data-row"><span class="label">${header}</span><div class="image-grid">`;
+                        ids.forEach(id => {
+                            html += `<img src="https://lh3.googleusercontent.com/u/0/d/${id}" class="img-thumb" onclick="openImg('${id}')">`;
+                        });
+                        html += `</div></div>`;
+                        return;
+                    }
+                }
+                html += `<div class="data-row"><span class="label">${header}</span><div class="value">${val}</div></div>`;
+            });
+
+            html += `
+                        <button class="close-row-btn" onclick="closeAndScroll('item-${index}')">
+                           Done / Close & Go Up ↑
+                        </button>
+                    </div>
+                </div>`;
+        });
+        container.innerHTML = html;
+        timeLeft = 60; // Reset timer to 60
+    }
+
+    function toggleItem(el) { el.parentElement.classList.toggle('open'); }
+
+    function closeAndScroll(id) {
+        const item = document.getElementById(id);
+        item.classList.remove('open');
+        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function filterData() {
+        const input = document.getElementById('searchInput').value.toLowerCase();
+        const items = document.getElementsByClassName('item');
+        for (let i = 0; i < items.length; i++) {
+            const text = items[i].innerText.toLowerCase();
+            items[i].style.display = text.includes(input) ? "block" : "none";
+        }
+    }
+
+    function openImg(id) {
+        event.stopPropagation();
+        document.getElementById('modalImg').src = `https://lh3.googleusercontent.com/u/0/d/${id}`;
+        document.getElementById('imageModal').style.display = 'block';
+    }
+
+    window.onscroll = function() {
+        const btn = document.getElementById("backToTop");
+        if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+            btn.style.display = "block";
+        } else {
+            btn.style.display = "none";
+        }
+    };
+
+    setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer').innerText = timeLeft;
+        if (timeLeft <= 0) fetchData();
+    }, 1000);
+
+    fetchData();
+</script>
+
+</body>
+</html>
