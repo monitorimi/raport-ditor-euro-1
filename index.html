@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raport Ditor Nova Home</title>
+<link rel="icon" href="https://balliugroup.org/wp-content/uploads/2023/10/euro1-logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a73e8">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { margin:0; font-family:Arial; background:#f4f6f9; }
+
+/* ── Login ── */
+#loginPage {
+  display:flex; height:100vh;
+  align-items:center; justify-content:center; flex-direction:column;
+  background:#ffffff;
+}
+#loginPage input { padding:10px; margin:5px; width:260px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
+#loginPage button { padding:10px 28px; background:#1a73e8; color:white; border:none; border-radius:6px; font-size:15px; cursor:pointer; margin-top:6px; }
+#loginPage button:hover { background:#1558b0; }
+
+/* ── Dashboard ── */
+#dashboard { display:none; }
+
+/* ── Header ── */
+.header {
+  position:sticky; top:0;
+  background:white;
+  padding:10px 16px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  box-shadow:0 1px 4px rgba(0,0,0,0.15);
+  z-index:100;
+}
+.logo { height:40px; width:auto; object-fit:contain; }
+.header-right { display:flex; align-items:center; gap:8px; flex:1; flex-wrap:wrap; }
+#searchInput {
+  flex:1; min-width:140px; padding:8px 12px;
+  border:1px solid #ddd; border-radius:20px; font-size:14px; outline:none;
+}
+#searchInput:focus { border-color:#1a73e8; }
+#dateFilter {
+  padding:8px 10px; border:1px solid #ddd; border-radius:20px;
+  font-size:13px; background:white; cursor:pointer; outline:none;
+}
+.sort-btn {
+  padding:7px 12px; border:1px solid #ddd; border-radius:20px;
+  font-size:13px; background:white; cursor:pointer; white-space:nowrap;
+}
+.sort-btn:hover { background:#f0f0f0; }
+.logout-btn {
+  padding:7px 14px; border:1px solid #ddd; border-radius:20px;
+  font-size:13px; background:white; cursor:pointer;
+}
+.logout-btn:hover { background:#fce8e6; color:#c62828; border-color:#c62828; }
+#entryCount {
+  font-size:12px; color:#666; white-space:nowrap; padding:0 4px;
+}
+
+/* ── Container ── */
+.container { max-width:900px; margin:auto; padding:15px; }
+
+/* ── Skeleton ── */
+.skeleton-item {
+  background:white; border:1px solid #eee; border-radius:6px;
+  margin-bottom:10px; padding:14px;
+}
+.skeleton-line {
+  background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.4s infinite;
+  border-radius:4px; height:14px; margin-bottom:8px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── Items ── */
+.item {
+  background:white; border:1px solid #ddd;
+  margin-bottom:10px; border-radius:8px;
+  overflow:hidden; transition:box-shadow 0.15s;
+}
+.item:hover { box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+
+.item-header {
+  padding:13px 14px;
+  font-weight:bold; font-size:14px;
+  cursor:pointer;
+  background:#f8f9fa;
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  user-select:none;
+}
+.item-header:hover { background:#eef1f5; }
+.item-header-left { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+.item-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.date-badge {
+  font-size:11px; font-weight:normal; color:#1a73e8;
+  background:#e8f0fe; border-radius:10px; padding:2px 8px; white-space:nowrap;
+}
+.photo-badge {
+  font-size:11px; font-weight:normal; color:#2e7d32;
+  background:#e8f5e9; border-radius:10px; padding:2px 8px; white-space:nowrap;
+}
+.chevron { font-size:12px; color:#999; transition:transform 0.2s; flex-shrink:0; }
+.item.open .chevron { transform:rotate(180deg); }
+
+.item-content { display:none; padding:12px 14px; border-top:1px solid #eee; }
+.item.open .item-content { display:block; }
+
+.label { font-size:11px; color:#1a73e8; margin-top:10px; text-transform:uppercase; letter-spacing:0.4px; }
+.value { margin-bottom:4px; font-size:14px; color:#333; }
+.data-row { margin-bottom:8px; }
+
+.image-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.img-thumb {
+  width:120px; height:90px; object-fit:cover;
+  border-radius:5px; cursor:pointer; border:1px solid #ddd;
+  transition:transform 0.15s, box-shadow 0.15s;
+}
+.img-thumb:hover { transform:scale(1.04); box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+
+/* ── Highlighted search match ── */
+mark { background:#fff176; color:inherit; border-radius:2px; padding:0 1px; }
+
+/* ── Back to top button ── */
+.scroll-top-btn {
+  display:flex; align-items:center; gap:6px;
+  margin-top:14px; padding:8px 14px;
+  font-size:13px; color:#1a73e8;
+  background:#e8f0fe; border:1px solid #c5d8fc;
+  border-radius:6px; cursor:pointer; width:fit-content;
+}
+.scroll-top-btn:hover { background:#d2e3fc; }
+
+/* ── Floating page-top button ── */
+#pageTopBtn {
+  position:fixed; bottom:24px; right:20px;
+  width:42px; height:42px; border-radius:50%;
+  background:#1a73e8; color:white; font-size:20px;
+  border:none; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  display:none; align-items:center; justify-content:center;
+  z-index:500; transition:opacity 0.2s;
+}
+#pageTopBtn:hover { background:#1558b0; }
+#pageTopBtn.visible { display:flex; }
+
+/* ── No results ── */
+.no-results { text-align:center; padding:40px; color:#999; font-size:15px; }
+
+/* ── Lightbox ── */
+#lightbox {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.88); z-index:9999;
+  align-items:center; justify-content:center;
+}
+#lightbox.active { display:flex; }
+#lightbox img { max-width:90vw; max-height:90vh; border-radius:6px; }
+#lightbox-close {
+  position:absolute; top:16px; right:20px;
+  font-size:32px; color:white; cursor:pointer; line-height:1;
+}
+
+/* Status circle */
+.status-circle {
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  border:2px solid #bbb;
+  background:white;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+
+.status-circle:hover {
+  transform:scale(1.1);
+}
+
+/* Filled */
+.status-circle.green { background:#2e7d32; border-color:#ffffff; }
+.status-circle.orange { background:#ef6c00; border-color:#ffffff; }
+.status-circle.red { background:#c62828; border-color:#ffffff; }
+
+/* Floating menu */
+#statusMenuGlobal {
+  position:fixed;
+  display:none;
+  gap:8px;
+  background:white;
+  padding:8px;
+  border-radius:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.2);
+  z-index:9999;
+}
+
+#statusMenuGlobal.show {
+  display:flex;
+}
+
+.status-option {
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  cursor:pointer;
+}
+
+.status-option.green { background:#2e7d32; }
+.status-option.orange { background:#ef6c00; }
+.status-option.red { background:#c62828; }
+
+/* Header colors */
+/* 🟢 Green - OK */
+.item.green .item-header {
+  background:#a5d6a7;
+  border-left:4px solid #1b5e20;
+}
+
+/* 🟠 Orange - warning */
+.item.orange .item-header {
+  background:#ffcc80;
+  border-left:4px solid #e65100;
+}
+
+/* 🔴 Red - critical */
+.item.red .item-header {
+  background:#ef9a9a;
+  border-left:4px solid #b71c1c;
+}
+
+#statusFilter {
+  padding:8px 10px;
+  border:1px solid #ddd;
+  border-radius:20px;
+  font-size:13px;
+  background:white;
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<div id="loginPage">
+  <img src="https://balliugroup.org/wp-content/uploads/2023/10/euro1-logo.png" width="140" style="margin-bottom:10px;">
+  <h2 style="margin:0 0 16px; color:#333;">Login</h2>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password" onkeydown="if(event.key==='Enter')login()">
+  <button onclick="login()">Login</button>
+  <p id="loginError" style="color:red; font-size:13px;"></p>
+</div>
+
+<div id="dashboard">
+  <div class="header">
+    <img src="https://balliugroup.org/wp-content/uploads/2023/10/euro1-logo.png" class="logo">
+    <div class="header-right">
+      <select id="statusFilter" onchange="applyFilters()">
+  <option value="all">All Status</option>
+  <option value="green">🟢 OK</option>
+  <option value="orange">🟠 Warning</option>
+  <option value="red">🔴 Critical</option>
+</select>
+      <input type="text" id="searchInput" placeholder="Search..." oninput="applyFilters()">
+      <select id="dateFilter" onchange="applyFilters()">
+        <option value="all">All dates</option>
+        <option value="today">Today</option>
+        <option value="week">This week</option>
+        <option value="month">This month</option>
+      </select>
+      <button class="sort-btn" onclick="toggleSort()">&#x21C5; <span id="sortLabel">Newest</span></button>
+      <span id="entryCount"></span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div id="container" class="container"></div>
+</div>
+
+<button id="pageTopBtn" title="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightbox-close">&times;</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyArqb-EmkC6eCScao91dw8ekqHwu1jM1HE",
+    authDomain: "raport-ditor-euro-1.firebaseapp.com",
+    projectId: "raport-ditor-euro-1",
+    storageBucket: "raport-ditor-euro-1.firebasestorage.app",
+    messagingSenderId: "465466609034",
+    appId: "1:465466609034:web:a2d0225d3f5cb3fd0e0c73",
+    measurementId: "G-080CFWMH7E"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+function login(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(err => { document.getElementById("loginError").innerText = err.message; });
+}
+function logout(){ auth.signOut(); }
+
+auth.onAuthStateChanged(user => {
+  if(user){
+    document.getElementById("loginPage").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    showSkeleton();
+    fetchData();
+  } else {
+    document.getElementById("loginPage").style.display = "flex";
+    document.getElementById("dashboard").style.display = "none";
+  }
+});
+
+    const SPREADSHEET_ID = '1O8LQmczFKOQlsp4QyNstxdGZaSq-FhMr9ntn3kP2eqw';
+    const API_KEY = 'AIzaSyA6w188Nve689wC79Me_bv7X9IHC0RQhL8';
+    const SHEET_NAME = 'Form Responses 1';
+
+let allRows = [], headers = [], sortAsc = false;
+
+function showSkeleton(){
+  let html = "";
+  for(let i=0;i<5;i++){
+    html += `<div class="skeleton-item">
+      <div class="skeleton-line" style="width:60%;height:16px;"></div>
+      <div class="skeleton-line" style="width:40%;"></div>
+      <div class="skeleton-line" style="width:75%;"></div>
+    </div>`;
+  }
+  document.getElementById("container").innerHTML = html;
+}
+
+async function fetchData(){
+  try{
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.values){
+      headers = data.values[0];
+      allRows = data.values.slice(1);
+      applyFilters();
+    }
+  } catch(e){ console.error(e); }
+}
+
+function toggleSort(){
+  sortAsc = !sortAsc;
+  document.getElementById("sortLabel").textContent = sortAsc ? "Oldest" : "Newest";
+  applyFilters();
+}
+
+function applyFilters(){
+  const statusFilter = document.getElementById("statusFilter")?.value || "all";
+  const search = document.getElementById("searchInput").value.toLowerCase().trim();
+  const dateFilter = document.getElementById("dateFilter").value;
+  const now = new Date();
+
+  let rows = [...allRows];
+
+  // Date filter (assumes col 0 is a date/timestamp string)
+  if(dateFilter !== "all"){
+    rows = rows.filter(row => {
+      const d = new Date(row[0]);
+      if(isNaN(d)) return true;
+      if(dateFilter === "today"){
+        return d.toDateString() === now.toDateString();
+      } else if(dateFilter === "week"){
+        const weekAgo = new Date(now); weekAgo.setDate(now.getDate()-7);
+        return d >= weekAgo;
+      } else if(dateFilter === "month"){
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }
+
+  // Sort
+  rows = sortAsc ? rows : [...rows].reverse();
+
+  // Search filter
+  if(search){
+    rows = rows.filter(row => row.join(" ").toLowerCase().includes(search));
+  }
+  if(statusFilter !== "all"){
+  rows = rows.filter(row => {
+    const id = row[0] + "_" + (row[1] || "");
+    return statusStore[id] === statusFilter;
+  });
+}
+  renderList(rows, search);
+}
+
+function extractDriveId(url){
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]{25,})/,
+    /[?&]id=([a-zA-Z0-9_-]{25,})/,
+    /\/open\?id=([a-zA-Z0-9_-]{25,})/
+  ];
+  for(const p of patterns){ const m = url.match(p); if(m) return m[1]; }
+  const m = url.match(/([a-zA-Z0-9_-]{25,})/);
+  return m ? m[1] : null;
+}
+
+function driveThumb(id, size=400){
+  return `https://lh3.googleusercontent.com/d/${id}=w${size}`;
+}
+
+function highlight(text, term){
+  if(!term) return text;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(text).replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+}
+
+function formatDate(str){
+  const d = new Date(str);
+  if(isNaN(d)) return null;
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function renderList(rows, searchTerm = ""){
+  const container = document.getElementById("container");
+  if(!rows.length){
+    container.innerHTML = `<div class="no-results">No entries found.</div>`;
+    document.getElementById("entryCount").textContent = "0 entries";
+    return;
+  }
+
+  document.getElementById("entryCount").textContent = `${rows.length} entr${rows.length===1?'y':'ies'}`;
+  let html = "";
+
+  rows.forEach((row, idx) => {
+    const itemId = row[0] + "_" + (row[1] || idx);
+    const dateStr = formatDate(row[0]);
+    const dateBadge = dateStr ? `<span class="date-badge">${dateStr}</span>` : "";
+
+    // Count photo columns
+    let photoCount = 0;
+    headers.forEach((h, i) => {
+      const val = row[i] || "";
+      if(typeof val === "string" && val.includes("drive.google.com")){
+        const parts = val.split(/[\s,]+/).filter(p => p.includes("drive.google.com"));
+        photoCount += parts.map(extractDriveId).filter(Boolean).length;
+      }
+    });
+    const photoBadge = photoCount > 0
+      ? `<span class="photo-badge">&#128247; ${photoCount} photo${photoCount>1?'s':''}</span>`
+      : "";
+
+    const title = highlight(row[0] || "Entry", searchTerm);
+
+    html += `<div class="item" id="${itemId}" data-id="${itemId}">
+      <div class="item-header" onclick="toggle(this)">
+        <div class="item-header-left">
+<span class="item-title">${title}</span>
+
+<div onclick="event.stopPropagation()">
+  <div class="status-circle" onclick="openStatusMenu(this, event)"></div>
+</div>
+
+${dateBadge}${photoBadge}
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="item-content">`;
+
+    headers.forEach((h, i) => {
+      let val = row[i] || "-";
+
+      if(typeof val === "string" && val.includes("drive.google.com")){
+        const parts = val.split(/[\s,]+/).filter(p => p.includes("drive.google.com"));
+        const ids = parts.map(extractDriveId).filter(Boolean);
+        if(ids.length){
+          html += `<div class="data-row">
+            <span class="label">${h}</span>
+            <div class="image-grid">`;
+          ids.forEach(id => {
+            html += `<img src="${driveThumb(id)}" class="img-thumb" loading="lazy"
+              onerror="this.src='https://drive.google.com/thumbnail?id=${id}&sz=w400'"
+              onclick="openImg('${id}')">`;
+          });
+          html += `</div></div>`;
+          return;
+        }
+      }
+
+      html += `<div class="data-row">
+        <span class="label">${h}</span>
+        <div class="value">${highlight(val, searchTerm)}</div>
+      </div>`;
+    });
+
+    html += `<button class="scroll-top-btn" onclick="scrollToTop('${itemId}')">↑ Back to top of entry</button>`;
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
+  Object.keys(statusStore).forEach(id => {
+  const item = document.getElementById(id);
+  if(!item) return;
+
+  const circle = item.querySelector(".status-circle");
+  if(!circle) return;
+
+  const color = statusStore[id];
+
+  item.classList.add(color);
+  circle.classList.add(color);
+});
+}
+
+function toggle(el){ el.parentElement.classList.toggle("open"); }
+
+function scrollToTop(id){
+  const item = document.getElementById(id);
+  item.scrollIntoView({ behavior:"smooth", block:"start" });
+  item.classList.remove("open");
+}
+
+function openImg(id){
+  document.getElementById("lightbox-img").src = driveThumb(id, 1200);
+  document.getElementById("lightbox").classList.add("active");
+}
+function closeLightbox(){
+  document.getElementById("lightbox").classList.remove("active");
+  document.getElementById("lightbox-img").src = "";
+}
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeLightbox(); });
+
+// Floating scroll-to-top button visibility
+window.addEventListener("scroll", () => {
+  const btn = document.getElementById("pageTopBtn");
+  btn.classList.toggle("visible", window.scrollY > 300);
+});
+
+setInterval(fetchData, 60000);
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("/service-worker.js")
+    .then(() => console.log("Service Worker Registered"));
+}
+
+let currentCircle = null;
+
+function openStatusMenu(el, event){
+  event.stopPropagation();
+
+  currentCircle = el;
+
+  const menu = document.getElementById("statusMenuGlobal");
+  const rect = el.getBoundingClientRect();
+
+  menu.style.top = (rect.bottom + 6) + "px";
+  menu.style.left = rect.left + "px";
+
+  menu.classList.add("show");
+}
+
+function applyStatus(color){
+  if(!currentCircle) return;
+
+  const item = currentCircle.closest(".item");
+
+  // remove old
+  item.classList.remove("green","orange","red");
+  currentCircle.classList.remove("green","orange","red");
+
+  // apply new
+  item.classList.add(color);
+  currentCircle.classList.add(color);
+
+  closeStatusMenu();
+}
+
+function closeStatusMenu(){
+  document.getElementById("statusMenuGlobal").classList.remove("show");
+}
+
+document.addEventListener("click", () => {
+  closeStatusMenu();
+});
+
+function applyStatus(color){
+  if(!currentCircle) return;
+
+  const item = currentCircle.closest(".item");
+  const itemId = item.getAttribute("data-id");
+
+  // UI update
+  item.classList.remove("green","orange","red");
+  currentCircle.classList.remove("green","orange","red");
+
+  item.classList.add(color);
+  currentCircle.classList.add(color);
+
+  // SAVE TO LOCAL STORAGE
+  statusStore[itemId] = color;
+  localStorage.setItem("statusStore", JSON.stringify(statusStore));
+
+  closeStatusMenu();
+}
+const statusStore = JSON.parse(localStorage.getItem("statusStore") || "{}");
+</script>
+<!-- Global floating status menu -->
+<div id="statusMenuGlobal">
+  <div class="status-option green" onclick="applyStatus('green')"></div>
+  <div class="status-option orange" onclick="applyStatus('orange')"></div>
+  <div class="status-option red" onclick="applyStatus('red')"></div>
+</div>
+</body>
+</html>
