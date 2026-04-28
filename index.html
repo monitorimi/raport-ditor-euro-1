@@ -542,7 +542,7 @@ window.addEventListener("scroll", () => {
   btn.classList.toggle("visible", window.scrollY > 300);
 });
 
-setInterval(fetchData, 60000);
+setInterval(fetchData, 3600000);
 
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("/service-worker.js")
